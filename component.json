@@ -1,0 +1,16 @@
+{
+  "name": "formjs",
+  "repo": "richthegeek/formjs",
+  "description": "Generate forms from a JSON description",
+  "version": "0.0.1",
+  "keywords": [],
+  "dependencies": {},
+  "development": {},
+  "license": "MIT",
+  "scripts": [
+    "index.js"
+  ],
+  "styles": [
+    "formjs.css"
+  ]
+}
