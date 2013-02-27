@@ -1,11 +1,14 @@
 <html>
 <head>
 	<title>Form test</title>
-	<script type="text/javascript" src="build/build.js"></script>
 
+	<link rel="stylesheet" type="text/css" href="build/build.css" />
+
+	<script type="text/javascript" src="build/build.js"></script>
 	<script type="text/javascript">
 	jQuery = require('component-jquery')
 	Form = require('Form.js')
+	require('richthegeek-select2/select2.js')
 	jQuery(function() {
 
 		form = new Form({
@@ -24,6 +27,20 @@
 					_type: 'text',
 					_label: 'Basic field',
 					_placeholder: 'I have a placeholder',
+				},
+				sel: {
+					_type: 'select2',
+					_label: 'Select 2',
+					_placeholder: 'A placeholder',
+					_width: 500,
+					_options: {
+						foo: 'Foo',
+						bar: 'Bar'
+					}
+				},
+				datepicker: {
+					_type: 'datepicker',
+					_label: 'Datepicker'
 				},
 				submit: {
 					_type: 'submit',

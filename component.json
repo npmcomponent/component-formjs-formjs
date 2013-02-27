@@ -5,7 +5,9 @@
   "version": "0.0.1",
   "keywords": ["form", "json"],
   "dependencies": {
-    "component/jquery": "*"
+    "component/jquery": "*",
+    "richthegeek/select2": "*",
+    "component/datepicker": "*"
   },
   "development": {},
   "license": "MIT",

@@ -1,14 +1,16 @@
-class Form
+class FormJS
 
 	@types = {}
 	@used_ids = []
 
-	constructor: (obj) ->
+	constructor: (obj, target) ->
 		if obj._method
 			obj._type = 'form'
 
-
 		@dom = @render obj
+
+		if target
+			@dom.appendTo target
 
 	_filter: (obj, match) ->
 		ret = {}
@@ -38,31 +40,37 @@ class Form
 		element
 
 	_render: (obj, type_override = null) ->
-
 		type = type_override or obj._type
-		fn = Form.types[type] or Form.types.default
+		fn = FormJS.types[type] or FormJS.types.default
 		
 		fn.call this, obj
 
 	_generate_id: (obj) ->
 		if not obj._id
 			id = "form-#{obj._name}"
-			ids = Form.used_ids
-			while id in Form.used_ids
+			ids = FormJS.used_ids
+			while id in FormJS.used_ids
 				id = "form-#{obj._name}-#{Math.random()}"
-			Form.used_ids.push id
+			FormJS.used_ids.push id
 			obj._id = id
 
 	label: (ele, obj) ->
+		if obj._description
+			ele.append @_render({_type: 'description', _description: obj._description})
+
 		if obj._label
+			method = (if obj._label_position is 'after' then 'append' else 'prepend')
 			@_generate_id obj
-			jQuery('<label />').attr({'for': obj._id}).text(obj._label).prependTo ele
+			ele[method] @_render({_type: 'label', _label: obj._label, _for: obj.id})
+
 		return ele
 
 	applyAttributes: (ele, _attrs) ->
+		if not _attrs
+			throw 'No attrs'
 		# need to transform the attrs to remove the _
 		attrs = ele._attributes or {}
-		for k,v of @getAttributes _attrs when k not in ['_nowrap', '_attributes', '_parent', '_events']
+		for k,v of @getAttributes _attrs when k not in ['_nowrap', '_attributes', '_parent', '_events', '_description', '_text', '_label']
 			k = k.substr(1)
 			if not attrs[k]?
 				attrs[k] = v
@@ -96,12 +104,12 @@ class Form
 		jQuery(ele).wrap('<div />').parent().addClass('form-row')
 
 	@registerType = @::registerType = (type, callback) ->
-		Form.types[type] = callback
+		FormJS.types[type] = callback
 
 ###
 Type: form
 ###
-Form.registerType 'form', (options) ->
+FormJS.registerType 'form', (options) ->
 	options._nowrap = true
 	options._attributes = {type: false}
 	@applyAttributes jQuery('<form />'), options
@@ -111,7 +119,7 @@ Type: fieldset
 Options:
 	legend: text to appear in a <legend> tag as the first child of the fieldset
 ###
-Form.registerType 'fieldset', (options) ->
+FormJS.registerType 'fieldset', (options) ->
 	options._nowrap = true
 
 	tag = @applyAttributes jQuery('<fieldset>'), options
@@ -125,9 +133,21 @@ Form.registerType 'fieldset', (options) ->
 Type: group
 Notes: wraps a set of elements without using a fieldset
 ###
-Form.registerType 'group', (options) ->
+FormJS.registerType 'group', (options) ->
 	options._nowrap = true
 	@applyAttributes jQuery('<div />'), options
+
+###
+Type: label
+Notes: Mostly used internally to add labels to existing elements
+Options:
+	label/text: The text in the label
+	for: the "for" attribute
+###
+FormJS.registerType 'label', (options) ->
+	options._nowrap = true
+	options._label ?= options._text
+	@applyAttributes jQuery('<label />').text(options._label), options
 
 ###
 Type: description
@@ -135,9 +155,10 @@ Notes: Mostly used internally to add descriptions to an existing element
 Options:
 	description/text: text to appear in the description
 ###
-Form.registerType 'description', (options) ->
+FormJS.registerType 'description', (options) ->
 	options._nowrap = true
-	@applyAttributes jQuery('<span />').addClass('description').html options._description or options._text
+	options._description ?= options._text
+	@applyAttributes jQuery('<span />').addClass('description').html(options._description), options
 
 ###
 Type: markup
@@ -145,23 +166,24 @@ Notes: Used to display markup, ie white-space: pre
 Options:
 	markup/text: text to appear inside
 ###
-Form.registerType 'markup', (options) ->
-	@applyAttributes jQuery('<div />').html options._markup or options.text
+FormJS.registerType 'markup', (options) ->
+	options._markup ?= options._text
+	@applyAttributes jQuery('<div />').html(options._markup), options
 
 ###
 Type: hidden
 Notes: A type=hidden input
 ###
-Form.registerType 'hidden', (options) ->
+FormJS.registerType 'hidden', (options) ->
 	options._nowrap = true
-	Form.types.default options
+	FormJS.types.default.call this, options
 
 ###
 Type: textarea
 Notes: A <textarea /> input
 Options: _cols, _rows
 ###
-Form.registerType 'textarea', (options) ->
+FormJS.registerType 'textarea', (options) ->
 	tag = jQuery('<textarea />').html options._value
 	delete options._value
 	@applyAttributes tag, options
@@ -173,14 +195,14 @@ Options:
 	_options: a hashmap of value and labels
 	_multiple: boolean wether the "multiple" attribute should be set
 ###
-Form.registerType 'select', (options) ->
+FormJS.registerType 'select', (options) ->
 	if options._multiple and (options._multiple is !!options._multiple)
 		options._multiple = 'multiple'
 	else
 		delete options._multiple
 
 	tag = jQuery('<select />')
-	for val, label of options
+	for val, label of options._options
 		opt = jQuery('<option />').attr('value', val).html(label)
 		if val is options._value
 			opt.attr('selected', 'selected')
@@ -193,14 +215,109 @@ Type: button
 Notes: A <button> tag
 Options: _value
 ###
-Form.registerType 'button', (options) ->
-	@applyAttributes jQuery('<button />').html(options._value)
+FormJS.registerType 'button', (options) ->
+	@applyAttributes jQuery('<button />').html(options._value), options
+
+###
+Type: radio, checkbox
+Notes: defined purely to add a default "label_position" to radio/checkbox elements
+###
+FormJS.registerType 'radio', (options) ->
+	options._label_position ?= 'after'
+	FormJS.types.default.call this, options
+
+FormJS.registerType 'checkbox', (options) ->
+	options._label_position ?= 'after'
+	FormJS.types.default.call this, options
+
+###
+Type: radios, checkboxes
+Notes: a list of radio/checkbox elements
+Options:
+	_options: a hashmap of value/label
+###
+FormJS.registerType 'radios', (options) ->
+	options._type = 'radio'
+	FormJS.types.options.call this, options
+
+FormJS.registerType 'checkboxes', (options) ->
+	options._type = 'checkbox'
+	FormJS.types.options.call this, options
+
+FormJS.registerType 'options', (options) ->
+	wrap = jQuery('<div />')
+	for value, label of options._options
+		o =
+			_type: options._type
+			_name: options._name
+			_value: value
+			_label: label
+		wrap.append @render o
+
+	wrap
+
+###
+Type: select2
+Notes: uses the select2 plugin
+Options:
+	_config: these options will be passed directly to the select2 constructor
+	_options: (optional) a value/label map, that gets written into _config.data
+	* any other options that 
+###
+FormJS.registerType 'select2', (options) ->
+	allowed_keys = ["width", "minimumInputLength", "maximumInputLength", "minimumResultsForSearch", "maximumSelectionSize", "placeholder", "separator", "allowClear", "multiple", "closeOnSelect", "openOnEnter", "id", "matcher", "sortResults", "formatSelection", "formatResult", "formatResultCssClass", "formatNoMatches", "formatSearching", "formatInputTooShort", "formatSelectionTooBig", "createSearchChoice", "initSelection", "tokenizer", "tokenSeparators", "query", "ajax", "data", "tags", "containerCss", "containerCssClass", "dropdownCss", "dropdownCssClass", "escapeMarkup", "selectOnBlur", "loadMorePadding"]
+	config = options._config or {}
+
+	for key in allowed_keys when options['_' + key]?
+		config[key] ?= options['_' + key]
+		delete options[key]
+
+	# target = (config.tags and 'tags') or 'data'
+	# for val, label of options._options or {}
+
+
+	if config.data or config.tags or options._options
+		options._options ?= {}
+		for datum in config.data or config.tags or {}
+			options._options[datum.id] = datum.text or datum.tag
+
+		vals = ({id: key, text: val} for key, val of options._options)
+		if config.tags
+			config.tags = vals
+		else
+			config.data = vals
+
+	ele = jQuery('<input type="hidden" />')
+
+	# need to delay the init until after it's in the dom
+	setTimeout (() -> ele.select2 config), 10
+	delete options._type
+	return @applyAttributes ele, options
+
+###
+Type: datepicker
+Notes: uses the component/datepicker
+Options: -
+###
+FormJS.registerType 'datepicker', (options) ->
+	options._type = 'date'
+	ele = FormJS.types.default.call this, options
+
+	setTimeout (() ->
+		picker = require 'datepicker'
+		picker ele
+	), 10
+
+	@applyAttributes ele, options
 
 ###
 Type: default
 Notes: fallback used to implement text/radio/submit etc <input type=".." without strictly defining them
 ###
-Form.registerType 'default', (options) ->
+FormJS.registerType 'default', (options) ->
 	@applyAttributes jQuery('<input />'), options
 
-module.exports = Form
+if module?
+	module.exports = FormJS
+if window?
+	window.FormJS = FormJS

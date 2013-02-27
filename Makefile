@@ -1,6 +1,6 @@
 
 build: components index.js formjs.css
-	@component build --dev
+	@component build
 
 components: component.json
 	@component install --dev
