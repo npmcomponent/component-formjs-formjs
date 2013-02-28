@@ -394,57 +394,6 @@
   });
 
   /*
-  Type: select2
-  Notes: uses the select2 plugin
-  Options:
-  	_config: these options will be passed directly to the select2 constructor
-  	_options: (optional) a value/label map, that gets written into _config.data
-  	* any other options that
-  */
-
-
-  FormJS.registerType('select2', function(options) {
-    var config, config_keys, datum, ele, id, key, target, text, _i, _j, _len, _len1, _ref, _ref1;
-    config_keys = ["width", "minimumInputLength", "maximumInputLength", "minimumResultsForSearch", "maximumSelectionSize", "placeholder", "separator", "allowClear", "multiple", "closeOnSelect", "openOnEnter", "id", "matcher", "sortResults", "formatSelection", "formatResult", "formatResultCssClass", "formatNoMatches", "formatSearching", "formatInputTooShort", "formatSelectionTooBig", "createSearchChoice", "initSelection", "tokenizer", "tokenSeparators", "query", "ajax", "data", "tags", "containerCss", "containerCssClass", "dropdownCss", "dropdownCssClass", "escapeMarkup", "selectOnBlur", "loadMorePadding"];
-    config = options._config || {};
-    for (_i = 0, _len = config_keys.length; _i < _len; _i++) {
-      key = config_keys[_i];
-      if (!(options['_' + key] != null)) {
-        continue;
-      }
-      if ((_ref = config[key]) == null) {
-        config[key] = options['_' + key];
-      }
-      delete options[key];
-    }
-    target = (config.tags && 'tags') || 'data';
-    _ref1 = config[target] || [];
-    for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-      datum = _ref1[_j];
-      options._options[datum.id] = datum.text;
-    }
-    config[target] = (function() {
-      var _ref2, _results;
-      _ref2 = options._options;
-      _results = [];
-      for (id in _ref2) {
-        text = _ref2[id];
-        _results.push({
-          id: id,
-          text: text
-        });
-      }
-      return _results;
-    })();
-    options._config = config;
-    ele = jQuery('<input type="hidden" />');
-    setTimeout((function() {
-      return ele.select2(config);
-    }), 10);
-    return this.applyAttributes(ele, options, config_keys.concat(['_type', '_config']));
-  });
-
-  /*
   Type: default
   Notes: fallback used to implement text/radio/submit etc <input type=".." without strictly defining them
   */
