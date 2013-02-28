@@ -267,34 +267,6 @@ FormJS.registerType 'options', (options) ->
 	@applyAttributes wrap, options
 
 ###
-Type: select2
-Notes: uses the select2 plugin
-Options:
-	_config: these options will be passed directly to the select2 constructor
-	_options: (optional) a value/label map, that gets written into _config.data
-	* any other options that 
-###
-FormJS.registerType 'select2', (options) ->
-	config_keys = ["width", "minimumInputLength", "maximumInputLength", "minimumResultsForSearch", "maximumSelectionSize", "placeholder", "separator", "allowClear", "multiple", "closeOnSelect", "openOnEnter", "id", "matcher", "sortResults", "formatSelection", "formatResult", "formatResultCssClass", "formatNoMatches", "formatSearching", "formatInputTooShort", "formatSelectionTooBig", "createSearchChoice", "initSelection", "tokenizer", "tokenSeparators", "query", "ajax", "data", "tags", "containerCss", "containerCssClass", "dropdownCss", "dropdownCssClass", "escapeMarkup", "selectOnBlur", "loadMorePadding"]
-	config = options._config or {}
-
-	for key in config_keys when options['_' + key]?
-		config[key] ?= options['_' + key]
-		delete options[key]
-
-	target = (config.tags and 'tags') or 'data'
-	options._options[datum.id] = datum.text for datum in config[target] or []
-	config[target] = ({id: id, text: text} for id, text of options._options)
-
-	options._config = config
-
-	ele = jQuery('<input type="hidden" />')
-
-	# need to delay the init until after it's in the dom
-	setTimeout (() -> ele.select2 config), 10
-	return @applyAttributes ele, options, config_keys.concat ['_type', '_config']
-
-###
 Type: default
 Notes: fallback used to implement text/radio/submit etc <input type=".." without strictly defining them
 ###

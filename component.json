@@ -6,8 +6,6 @@
   "keywords": ["form", "json"],
   "dependencies": {
     "component/jquery": "*",
-    "richthegeek/select2": "*",
-    "component/datepicker": "*"
   },
   "development": {},
   "license": "MIT",
