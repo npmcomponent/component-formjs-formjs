@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "keywords": ["form", "json"],
   "dependencies": {
-    "component/jquery": "*",
+    "component/jquery": "*"
   },
   "development": {},
   "license": "MIT",
