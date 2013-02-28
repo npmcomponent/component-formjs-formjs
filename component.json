@@ -1,6 +1,6 @@
 {
   "name": "Form.js",
-  "repo": "richthegeek/formjs",
+  "repo": "component-formjs/formjs",
   "description": "Generate forms from a JSON description",
   "version": "0.1.0",
   "keywords": ["form", "json"],
