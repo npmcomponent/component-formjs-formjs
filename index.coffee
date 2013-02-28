@@ -35,7 +35,7 @@ class FormJS
 
 		children = @getChildren obj
 		for name, val of children
-			@render(val).appendTo element
+			@render(val).appendTo val._target or element
 
 		element
 

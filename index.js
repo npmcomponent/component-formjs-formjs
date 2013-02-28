@@ -55,7 +55,7 @@
       children = this.getChildren(obj);
       for (name in children) {
         val = children[name];
-        this.render(val).appendTo(element);
+        this.render(val).appendTo(val._target || element);
       }
       return element;
     };
