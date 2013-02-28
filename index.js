@@ -445,25 +445,6 @@
   });
 
   /*
-  Type: datepicker
-  Notes: uses the component/datepicker
-  Options: -
-  */
-
-
-  FormJS.registerType('datepicker', function(options) {
-    var ele;
-    options._type = 'date';
-    ele = FormJS.types["default"].call(this, options);
-    setTimeout((function() {
-      var picker;
-      picker = require('datepicker');
-      return picker(ele);
-    }), 10);
-    return this.applyAttributes(ele, options);
-  });
-
-  /*
   Type: default
   Notes: fallback used to implement text/radio/submit etc <input type=".." without strictly defining them
   */

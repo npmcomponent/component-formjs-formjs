@@ -39,7 +39,7 @@
 							for (var i = 0; i < results.length; i++)
 								if (results[i].text.toLowerCase() == query.term.toLowerCase())
 									return query.callback({results: results})
-							results.push({id: query.term, text: query.term})
+							results.unshift({id: query.term, text: query.term})
 						}
 						query.callback({results: results})
 					},

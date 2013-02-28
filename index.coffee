@@ -295,22 +295,6 @@ FormJS.registerType 'select2', (options) ->
 	return @applyAttributes ele, options, config_keys.concat ['_type', '_config']
 
 ###
-Type: datepicker
-Notes: uses the component/datepicker
-Options: -
-###
-FormJS.registerType 'datepicker', (options) ->
-	options._type = 'date'
-	ele = FormJS.types.default.call this, options
-
-	setTimeout (() ->
-		picker = require 'datepicker'
-		picker ele
-	), 10
-
-	@applyAttributes ele, options
-
-###
 Type: default
 Notes: fallback used to implement text/radio/submit etc <input type=".." without strictly defining them
 ###
