@@ -7,11 +7,11 @@
 	<script type="text/javascript" src="build/build.js"></script>
 	<script type="text/javascript">
 	jQuery = require('component-jquery')
-	Form = require('Form.js')
-	require('richthegeek-select2/select2.js')
+	FormJS = require('component-formjs-formjs')
+	require('component-formjs-select2')(FormJS)
 	jQuery(function() {
 
-		form = new Form({
+		form = new FormJS({
 			_method: 'POST',
 			_action: 'foo',
 			_events: {
