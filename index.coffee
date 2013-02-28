@@ -61,19 +61,29 @@ class FormJS
 		if obj._label
 			method = (if obj._label_position is 'after' then 'append' else 'prepend')
 			@_generate_id obj
-			ele[method] @_render({_type: 'label', _label: obj._label, _for: obj.id})
+			o = obj._label
+			if typeof obj._label isnt 'object'
+				o = {_label: obj._label}
+			o._type = 'label'
+			o._for ?= obj.id
+			ele[method] @_render o
 
 		return ele
 
-	applyAttributes: (ele, _attrs) ->
+	applyAttributes: (ele, _attrs, skip = []) ->
 		if not _attrs
 			throw 'No attrs'
+
+		ele.data('form-config', _attrs)
+
 		# need to transform the attrs to remove the _
 		attrs = ele._attributes or {}
-		for k,v of @getAttributes _attrs when k not in ['_nowrap', '_attributes', '_parent', '_events', '_description', '_text', '_label']
+		skip = skip.concat ['_nowrap', '_attributes', '_parent', '_events', '_description', '_text', '_label', '_options']
+		for k,v of @getAttributes _attrs when k not in skip and typeof v isnt 'function'
 			k = k.substr(1)
 			if not attrs[k]?
 				attrs[k] = v
+		console.log 'attrs', attrs
 		ele.attr(attrs)
 		# bind all events.
 		if events = _attrs._events
@@ -224,11 +234,11 @@ Notes: defined purely to add a default "label_position" to radio/checkbox elemen
 ###
 FormJS.registerType 'radio', (options) ->
 	options._label_position ?= 'after'
-	FormJS.types.default.call this, options
+	FormJS.types.default.call this, options, ['_label_position']
 
 FormJS.registerType 'checkbox', (options) ->
 	options._label_position ?= 'after'
-	FormJS.types.default.call this, options
+	FormJS.types.default.call this, options, ['_label_position']
 
 ###
 Type: radios, checkboxes
@@ -254,7 +264,7 @@ FormJS.registerType 'options', (options) ->
 			_label: label
 		wrap.append @render o
 
-	wrap
+	@applyAttributes wrap, options
 
 ###
 Type: select2
@@ -265,34 +275,24 @@ Options:
 	* any other options that 
 ###
 FormJS.registerType 'select2', (options) ->
-	allowed_keys = ["width", "minimumInputLength", "maximumInputLength", "minimumResultsForSearch", "maximumSelectionSize", "placeholder", "separator", "allowClear", "multiple", "closeOnSelect", "openOnEnter", "id", "matcher", "sortResults", "formatSelection", "formatResult", "formatResultCssClass", "formatNoMatches", "formatSearching", "formatInputTooShort", "formatSelectionTooBig", "createSearchChoice", "initSelection", "tokenizer", "tokenSeparators", "query", "ajax", "data", "tags", "containerCss", "containerCssClass", "dropdownCss", "dropdownCssClass", "escapeMarkup", "selectOnBlur", "loadMorePadding"]
+	config_keys = ["width", "minimumInputLength", "maximumInputLength", "minimumResultsForSearch", "maximumSelectionSize", "placeholder", "separator", "allowClear", "multiple", "closeOnSelect", "openOnEnter", "id", "matcher", "sortResults", "formatSelection", "formatResult", "formatResultCssClass", "formatNoMatches", "formatSearching", "formatInputTooShort", "formatSelectionTooBig", "createSearchChoice", "initSelection", "tokenizer", "tokenSeparators", "query", "ajax", "data", "tags", "containerCss", "containerCssClass", "dropdownCss", "dropdownCssClass", "escapeMarkup", "selectOnBlur", "loadMorePadding"]
 	config = options._config or {}
 
-	for key in allowed_keys when options['_' + key]?
+	for key in config_keys when options['_' + key]?
 		config[key] ?= options['_' + key]
 		delete options[key]
 
-	# target = (config.tags and 'tags') or 'data'
-	# for val, label of options._options or {}
+	target = (config.tags and 'tags') or 'data'
+	options._options[datum.id] = datum.text for datum in config[target] or []
+	config[target] = ({id: id, text: text} for id, text of options._options)
 
-
-	if config.data or config.tags or options._options
-		options._options ?= {}
-		for datum in config.data or config.tags or {}
-			options._options[datum.id] = datum.text or datum.tag
-
-		vals = ({id: key, text: val} for key, val of options._options)
-		if config.tags
-			config.tags = vals
-		else
-			config.data = vals
+	options._config = config
 
 	ele = jQuery('<input type="hidden" />')
 
 	# need to delay the init until after it's in the dom
 	setTimeout (() -> ele.select2 config), 10
-	delete options._type
-	return @applyAttributes ele, options
+	return @applyAttributes ele, options, config_keys.concat ['_type', '_config']
 
 ###
 Type: datepicker

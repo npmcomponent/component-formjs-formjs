@@ -84,7 +84,7 @@
     };
 
     FormJS.prototype.label = function(ele, obj) {
-      var method;
+      var method, o, _ref;
       if (obj._description) {
         ele.append(this._render({
           _type: 'description',
@@ -94,25 +94,36 @@
       if (obj._label) {
         method = (obj._label_position === 'after' ? 'append' : 'prepend');
         this._generate_id(obj);
-        ele[method](this._render({
-          _type: 'label',
-          _label: obj._label,
-          _for: obj.id
-        }));
+        o = obj._label;
+        if (typeof obj._label !== 'object') {
+          o = {
+            _label: obj._label
+          };
+        }
+        o._type = 'label';
+        if ((_ref = o._for) == null) {
+          o._for = obj.id;
+        }
+        ele[method](this._render(o));
       }
       return ele;
     };
 
-    FormJS.prototype.applyAttributes = function(ele, _attrs) {
+    FormJS.prototype.applyAttributes = function(ele, _attrs, skip) {
       var attrs, cb, ev, events, k, v, _ref;
+      if (skip == null) {
+        skip = [];
+      }
       if (!_attrs) {
         throw 'No attrs';
       }
+      ele.data('form-config', _attrs);
       attrs = ele._attributes || {};
+      skip = skip.concat(['_nowrap', '_attributes', '_parent', '_events', '_description', '_text', '_label', '_options']);
       _ref = this.getAttributes(_attrs);
       for (k in _ref) {
         v = _ref[k];
-        if (!(k !== '_nowrap' && k !== '_attributes' && k !== '_parent' && k !== '_events' && k !== '_description' && k !== '_text' && k !== '_label')) {
+        if (!(__indexOf.call(skip, k) < 0 && typeof v !== 'function')) {
           continue;
         }
         k = k.substr(1);
@@ -120,6 +131,7 @@
           attrs[k] = v;
         }
       }
+      console.log('attrs', attrs);
       ele.attr(attrs);
       if (events = _attrs._events) {
         for (ev in events) {
@@ -335,7 +347,7 @@
     if ((_ref = options._label_position) == null) {
       options._label_position = 'after';
     }
-    return FormJS.types["default"].call(this, options);
+    return FormJS.types["default"].call(this, options, ['_label_position']);
   });
 
   FormJS.registerType('checkbox', function(options) {
@@ -343,7 +355,7 @@
     if ((_ref = options._label_position) == null) {
       options._label_position = 'after';
     }
-    return FormJS.types["default"].call(this, options);
+    return FormJS.types["default"].call(this, options, ['_label_position']);
   });
 
   /*
@@ -378,7 +390,7 @@
       };
       wrap.append(this.render(o));
     }
-    return wrap;
+    return this.applyAttributes(wrap, options);
   });
 
   /*
@@ -392,11 +404,11 @@
 
 
   FormJS.registerType('select2', function(options) {
-    var allowed_keys, config, datum, ele, key, val, vals, _i, _j, _len, _len1, _ref, _ref1, _ref2;
-    allowed_keys = ["width", "minimumInputLength", "maximumInputLength", "minimumResultsForSearch", "maximumSelectionSize", "placeholder", "separator", "allowClear", "multiple", "closeOnSelect", "openOnEnter", "id", "matcher", "sortResults", "formatSelection", "formatResult", "formatResultCssClass", "formatNoMatches", "formatSearching", "formatInputTooShort", "formatSelectionTooBig", "createSearchChoice", "initSelection", "tokenizer", "tokenSeparators", "query", "ajax", "data", "tags", "containerCss", "containerCssClass", "dropdownCss", "dropdownCssClass", "escapeMarkup", "selectOnBlur", "loadMorePadding"];
+    var config, config_keys, datum, ele, id, key, target, text, _i, _j, _len, _len1, _ref, _ref1;
+    config_keys = ["width", "minimumInputLength", "maximumInputLength", "minimumResultsForSearch", "maximumSelectionSize", "placeholder", "separator", "allowClear", "multiple", "closeOnSelect", "openOnEnter", "id", "matcher", "sortResults", "formatSelection", "formatResult", "formatResultCssClass", "formatNoMatches", "formatSearching", "formatInputTooShort", "formatSelectionTooBig", "createSearchChoice", "initSelection", "tokenizer", "tokenSeparators", "query", "ajax", "data", "tags", "containerCss", "containerCssClass", "dropdownCss", "dropdownCssClass", "escapeMarkup", "selectOnBlur", "loadMorePadding"];
     config = options._config || {};
-    for (_i = 0, _len = allowed_keys.length; _i < _len; _i++) {
-      key = allowed_keys[_i];
+    for (_i = 0, _len = config_keys.length; _i < _len; _i++) {
+      key = config_keys[_i];
       if (!(options['_' + key] != null)) {
         continue;
       }
@@ -405,40 +417,31 @@
       }
       delete options[key];
     }
-    if (config.data || config.tags || options._options) {
-      if ((_ref1 = options._options) == null) {
-        options._options = {};
-      }
-      _ref2 = config.data || config.tags || {};
-      for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
-        datum = _ref2[_j];
-        options._options[datum.id] = datum.text || datum.tag;
-      }
-      vals = (function() {
-        var _ref3, _results;
-        _ref3 = options._options;
-        _results = [];
-        for (key in _ref3) {
-          val = _ref3[key];
-          _results.push({
-            id: key,
-            text: val
-          });
-        }
-        return _results;
-      })();
-      if (config.tags) {
-        config.tags = vals;
-      } else {
-        config.data = vals;
-      }
+    target = (config.tags && 'tags') || 'data';
+    _ref1 = config[target] || [];
+    for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+      datum = _ref1[_j];
+      options._options[datum.id] = datum.text;
     }
+    config[target] = (function() {
+      var _ref2, _results;
+      _ref2 = options._options;
+      _results = [];
+      for (id in _ref2) {
+        text = _ref2[id];
+        _results.push({
+          id: id,
+          text: text
+        });
+      }
+      return _results;
+    })();
+    options._config = config;
     ele = jQuery('<input type="hidden" />');
     setTimeout((function() {
       return ele.select2(config);
     }), 10);
-    delete options._type;
-    return this.applyAttributes(ele, options);
+    return this.applyAttributes(ele, options, config_keys.concat(['_type', '_config']));
   });
 
   /*

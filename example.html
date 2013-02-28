@@ -33,15 +33,22 @@
 					_label: 'Select 2',
 					_placeholder: 'A placeholder',
 					_width: 500,
+					_query: function(query) {
+						results = JSON.parse(JSON.stringify(query.element.data('form-config')._config.data))
+						if (query.term.length > 0) {
+							for (var i = 0; i < results.length; i++)
+								if (results[i].text.toLowerCase() == query.term.toLowerCase())
+									return query.callback({results: results})
+							results.push({id: query.term, text: query.term})
+						}
+						query.callback({results: results})
+					},
 					_options: {
 						foo: 'Foo',
 						bar: 'Bar'
 					}
 				},
-				datepicker: {
-					_type: 'datepicker',
-					_label: 'Datepicker'
-				},
+
 				submit: {
 					_type: 'submit',
 					_value: 'Submit'
