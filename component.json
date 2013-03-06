@@ -2,7 +2,7 @@
   "name": "Form.js",
   "repo": "component-formjs/formjs",
   "description": "Generate forms from a JSON description",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "keywords": ["form", "json"],
   "dependencies": {
     "component/jquery": "*"
