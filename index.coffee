@@ -84,7 +84,7 @@ class FormJS
 			k = k.substr(1)
 			if not attrs[k]?
 				attrs[k] = v
-		console.log 'attrs', attrs
+
 		ele.attr(attrs)
 		# bind all events.
 		if events = _attrs._events

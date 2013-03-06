@@ -132,7 +132,6 @@
           attrs[k] = v;
         }
       }
-      console.log('attrs', attrs);
       ele.attr(attrs);
       if (events = _attrs._events) {
         for (ev in events) {
