@@ -8,6 +8,7 @@ class FormJS
 			obj._type = 'form'
 
 		@dom = @render obj
+		@dom.find('*').data('form-config', obj)
 
 		if target
 			@dom.appendTo target
@@ -74,7 +75,7 @@ class FormJS
 		if not _attrs
 			throw 'No attrs'
 
-		ele.data('form-config', _attrs)
+		ele.data('item-config', _attrs)
 
 		# need to transform the attrs to remove the _
 		attrs = ele._attributes or {}
