@@ -32,7 +32,7 @@ class FormJS
 	render: (obj) ->
 		element = @_render obj
 		if not obj._nowrap
-			element = @label (@_wrap element), obj
+			element = @label (@_wrap element, obj), obj
 
 		children = @getChildren obj
 		for name, val of children
@@ -111,8 +111,10 @@ class FormJS
 
 	# takes an jQuery object / html
 	# returns a wrapped jQuery object
-	_wrap: (ele) ->
-		jQuery(ele).wrap('<div />').parent().addClass('form-row')
+	_wrap: (ele, obj) ->
+		$ele = jQuery(ele).wrap('<div />').parent().addClass('form-row')
+		if obj._type then $ele.addClass('form-' + obj._type)
+		return $ele
 
 	@registerType = @::registerType = (type, callback) ->
 		FormJS.types[type] = callback
@@ -228,6 +230,28 @@ Options: _value
 ###
 FormJS.registerType 'button', (options) ->
 	@applyAttributes jQuery('<button />').html(options._value), options
+
+###
+Type: cancel
+Notes: A <button> that, when clicked, fires the _cancel event or resets the form
+Options: _value
+###
+FormJS.registerType 'cancel', (options) ->
+	button = FormJS.types.button.call this, options
+	button.addClass 'cancel'
+
+	button.click () ->
+		$self = $ @
+		form = $self.data 'form-config'
+		item = $self.data 'item-config'
+
+		if form._cancel
+			form._cancel item
+		else
+			$self.parents('form').reset()
+
+		return false
+
 
 ###
 Type: radio, checkbox

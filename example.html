@@ -7,8 +7,7 @@
 	<script type="text/javascript" src="build/build.js"></script>
 	<script type="text/javascript">
 	jQuery = require('component-jquery')
-	FormJS = require('component-formjs-formjs')
-	require('component-formjs-select2')(FormJS)
+	FormJS = require('formjs')
 	jQuery(function() {
 
 		form = new FormJS({
@@ -29,26 +28,14 @@
 					_placeholder: 'I have a placeholder',
 				},
 				sel: {
-					_type: 'select2',
+					_type: 'select',
 					_label: 'Select 2',
 					_placeholder: 'A placeholder',
-					_width: 500,
-					_query: function(query) {
-						results = JSON.parse(JSON.stringify(query.element.data('form-config')._config.data))
-						if (query.term.length > 0) {
-							for (var i = 0; i < results.length; i++)
-								if (results[i].text.toLowerCase() == query.term.toLowerCase())
-									return query.callback({results: results})
-							results.unshift({id: query.term, text: query.term})
-						}
-						query.callback({results: results})
-					},
 					_options: {
 						foo: 'Foo',
 						bar: 'Bar'
 					}
 				},
-
 				submit: {
 					_type: 'submit',
 					_value: 'Submit'

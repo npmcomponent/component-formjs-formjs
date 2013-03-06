@@ -51,7 +51,7 @@
       var children, element, name, val;
       element = this._render(obj);
       if (!obj._nowrap) {
-        element = this.label(this._wrap(element), obj);
+        element = this.label(this._wrap(element, obj), obj);
       }
       children = this.getChildren(obj);
       for (name in children) {
@@ -167,8 +167,13 @@
       return ele;
     };
 
-    FormJS.prototype._wrap = function(ele) {
-      return jQuery(ele).wrap('<div />').parent().addClass('form-row');
+    FormJS.prototype._wrap = function(ele, obj) {
+      var $ele;
+      $ele = jQuery(ele).wrap('<div />').parent().addClass('form-row');
+      if (obj._type) {
+        $ele.addClass('form-' + obj._type);
+      }
+      return $ele;
     };
 
     FormJS.registerType = FormJS.prototype.registerType = function(type, callback) {
@@ -335,6 +340,31 @@
 
   FormJS.registerType('button', function(options) {
     return this.applyAttributes(jQuery('<button />').html(options._value), options);
+  });
+
+  /*
+  Type: cancel
+  Notes: A <button> that, when clicked, fires the _cancel event or resets the form
+  Options: _value
+  */
+
+
+  FormJS.registerType('cancel', function(options) {
+    var button;
+    button = FormJS.types.button.call(this, options);
+    button.addClass('cancel');
+    return button.click(function() {
+      var $self, form, item;
+      $self = $(this);
+      form = $self.data('form-config');
+      item = $self.data('item-config');
+      if (form._cancel) {
+        form._cancel(item);
+      } else {
+        $self.parents('form').reset();
+      }
+      return false;
+    });
   });
 
   /*
