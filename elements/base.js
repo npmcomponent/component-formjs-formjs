@@ -94,6 +94,26 @@
       return this.applyAttributes(jQuery('<div />').html(options._markup), options, ['markup', 'text']);
     });
     /*
+    	Type: tag
+    	Notes: Render a generic HTML tag
+    	Options:
+    		tag: the tag type
+    		html/content: inserted as html
+    		text: inserted as stripped text
+    */
+
+    FormJS.registerType('tag', function(options) {
+      var tag;
+      tag = jQuery("<" + options._tag + " />");
+      if (options._html || options._content) {
+        tag.html(options._html || options._content);
+      }
+      if (options._text) {
+        tag.text(options._text);
+      }
+      return this.applyAttributes(tag, options, ['html', 'text', 'tag']);
+    });
+    /*
     	Type: hidden
     	Notes: A type=hidden input
     */
