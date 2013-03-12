@@ -202,11 +202,12 @@ class FormJS
 	# takes an jQuery object / html
 	# returns a wrapped jQuery object
 	_wrap: (ele, obj) ->
-		jQuery(ele)
+		wrap = jQuery(ele)
 		  .wrap('<div />')
 		  .parent()
 		  .addClass('form-row')
 		  .addClass obj._type and 'form-' + obj._type
+		@applyAttributes wrap, obj._wrap_options or {}
 
 	@registerType = @::registerType = (type, callback) ->
 		FormJS.types[type] = callback

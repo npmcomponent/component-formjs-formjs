@@ -297,7 +297,9 @@
     };
 
     FormJS.prototype._wrap = function(ele, obj) {
-      return jQuery(ele).wrap('<div />').parent().addClass('form-row').addClass(obj._type && 'form-' + obj._type);
+      var wrap;
+      wrap = jQuery(ele).wrap('<div />').parent().addClass('form-row').addClass(obj._type && 'form-' + obj._type);
+      return this.applyAttributes(wrap, obj._wrap_options || {});
     };
 
     FormJS.registerType = FormJS.prototype.registerType = function(type, callback) {
