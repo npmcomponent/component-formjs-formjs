@@ -13,11 +13,12 @@
       if (obj._method) {
         obj._type = 'form';
       }
+      this.config = obj;
       this.dom = this.render(obj);
+      this.dom.addClass('formjs-root');
       this.dom.find('*').data('form-config', obj);
-      if (target) {
-        this.dom.appendTo(target);
-      }
+      this.config = obj;
+      target && this.dom.appendTo(target);
     }
 
     FormJS.prototype._filter = function(obj, match) {
@@ -50,7 +51,7 @@
     FormJS.prototype.render = function(obj) {
       var children, element, name, val;
       element = this._render(obj);
-      if (!obj._nowrap) {
+      if (obj._nowrap !== true) {
         element = this.label(this._wrap(element, obj), obj);
       }
       children = this.getChildren(obj);
@@ -73,11 +74,11 @@
 
     FormJS.prototype._generate_id = function(obj) {
       var id, ids;
-      if (!obj._id) {
+      if (!obj._id && obj._name) {
         id = "form-" + obj._name;
         ids = FormJS.used_ids;
         while (__indexOf.call(FormJS.used_ids, id) >= 0) {
-          id = "form-" + obj._name + "-" + (Math.random());
+          id = "form-" + obj._name + "-" + (Math.floor(Math.random() * 500));
         }
         FormJS.used_ids.push(id);
         return obj._id = id;
@@ -103,21 +104,147 @@
         }
         o._type = 'label';
         if ((_ref = o._for) == null) {
-          o._for = obj.id;
+          o._for = obj._id;
         }
         ele[method](this._render(o));
       }
       return ele;
     };
 
+    FormJS.prototype.populate = function(data, target) {
+      var checked, conf, config, ele, element, elements, get_names, k, multi, name, names, v, val, _i, _len, _ref, _results;
+      if (target == null) {
+        target = this.dom;
+      }
+      elements = {};
+      _ref = target.find('[name]');
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        ele = _ref[_i];
+        elements[$(ele).attr('name')] = $(ele);
+      }
+      get_names = function(value, key, names) {
+        var k, v;
+        if (key == null) {
+          key = '';
+        }
+        if (names == null) {
+          names = {};
+        }
+        if (typeof value === 'object') {
+          for (k in value) {
+            v = value[k];
+            names = get_names(v, key + '[' + k + ']', names);
+          }
+        } else {
+          names[key] = value;
+        }
+        return names;
+      };
+      _results = [];
+      for (k in data) {
+        v = data[k];
+        names = get_names(v, k);
+        _results.push((function() {
+          var _results1;
+          _results1 = [];
+          for (name in names) {
+            val = names[name];
+            if (!(element = this.dom.find('[name="' + name + '"]'))) {
+              continue;
+            }
+            config = element.data('item-config');
+            if ((multi = element.parents('.form-multiple')).length > 0) {
+              conf = multi.data('item-config');
+              if (conf._populate_callback) {
+                if (conf._populate_callback(name, val, element, conf, data)) {
+                  continue;
+                }
+              }
+            }
+            if (element.attr('type') === 'checkbox') {
+              checked = (val.toUpperCase && val.length) || (val.toFixed && !!(parseFloat(val))) || 1;
+              if (checked) {
+                _results1.push(element.attr('checked', 'checked'));
+              } else {
+                _results1.push(element.removeAttr('checked'));
+              }
+            } else if (element.attr('type') === 'radio') {
+              _results1.push(this.form.find('[name="' + (name = '"][value=' + val + ']')).removeAttr('checked').filter('[value=' + val + ']').attr('checked', 'checked'));
+            } else {
+              _results1.push(element != null ? element.val(val) : void 0);
+            }
+          }
+          return _results1;
+        }).call(this));
+      }
+      return _results;
+    };
+
+    FormJS.prototype.getValues = function(target, debug) {
+      var config, ele, find, i, k, level, levels, match, name, reg, tar, type, val, values, _i, _j, _len, _len1, _ref, _ref1, _ref2;
+      if (debug == null) {
+        debug = false;
+      }
+      values = {};
+      target = $(target || this.dom);
+      _ref = target.find('[name]');
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        ele = _ref[_i];
+        ele = jQuery(ele);
+        name = ele.attr('name');
+        type = ele.attr('type');
+        if (type === 'submit' || type === 'reset' || type === 'cancel') {
+          continue;
+        }
+        config = ele.parent().find('input, select, textarea').andSelf().data('item-config');
+        val = (config && (((_ref1 = config._value_callback) != null ? _ref1.call : void 0) != null) && config._value_callback.call(ele, config)) || ele.attr('data-value') || ele.val();
+        if (!val) {
+          continue;
+        }
+        if (type === 'radio' || type === 'checkbox') {
+          val = target.find('[name="' + name + '"]:checked').val();
+          if (val === 'undefined' || typeof val === 'undefined') {
+            val = false;
+          }
+        }
+        levels = ['^([^\\[]+)', '\\[([0-9]+|[^\\]]+)\\]', '\\[([0-9]+|[^\\]]+)\\]', '\\[([0-9]+|[^\\]]+)\\]'];
+        reg = '';
+        i = 0;
+        tar = values;
+        for (_j = 0, _len1 = levels.length; _j < _len1; _j++) {
+          level = levels[_j];
+          i++;
+          reg += level;
+          match = name.match(reg);
+          if (match && (match[i] != null)) {
+            k = match[i];
+            type = (isNaN(parseInt(match[i])) ? {} : []);
+            if (i === 1) {
+              find = 'values.' + k;
+              if ((_ref2 = values[k]) == null) {
+                values[k] = type.constructor();
+              }
+            } else {
+              eval(find + ' = ' + find + ' && ' + find + '.constructor == type.constructor ? ' + find + ' : type.constructor()');
+              find += '["' + k + '"]';
+            }
+          }
+        }
+        eval(find + ' = ' + JSON.stringify(val));
+      }
+      return values;
+    };
+
     FormJS.prototype.applyAttributes = function(ele, _attrs, skip) {
-      var attrs, cb, ev, events, k, v, _ref;
+      var attrs, cb, ev, events, k, v, _ref,
+        _this = this;
       if (skip == null) {
         skip = [];
       }
       if (!_attrs) {
         throw 'No attrs';
       }
+      this._generate_id(_attrs);
       ele.data('item-config', _attrs);
       attrs = ele._attributes || {};
       skip = skip.concat(['_nowrap', '_attributes', '_parent', '_events', '_description', '_text', '_label', '_options']);
@@ -136,43 +263,41 @@
       if (events = _attrs._events) {
         for (ev in events) {
           cb = events[ev];
-          if (!(ev)) {
-            continue;
-          }
-          if (cb.forEach == null) {
-            cb = [cb];
-          }
-          if (ev === 'submit' && events.validate) {
-            cb.unshift(events.validate);
-          }
-          if (ev === 'validate') {
-            if (!events.submit) {
-              ev = 'submit';
-            } else {
-              continue;
-            }
-          }
-          ele[ev](function() {
-            var _cb, _i, _len;
-            for (_i = 0, _len = cb.length; _i < _len; _i++) {
-              _cb = cb[_i];
-              if (!_cb.apply(this, arguments)) {
-                return false;
+          if (ev) {
+            (function(ev, cb) {
+              if (cb.forEach == null) {
+                cb = [cb];
               }
-            }
-          });
+              if (ev === 'submit' && events.validate) {
+                cb.unshift(events.validate);
+              }
+              if (ev === 'validate') {
+                if (!events.submit) {
+                  ev = 'submit';
+                } else {
+                  return;
+                }
+              }
+              if (ele[ev]) {
+                return ele[ev](function(e) {
+                  var _cb, _i, _len;
+                  for (_i = 0, _len = cb.length; _i < _len; _i++) {
+                    _cb = cb[_i];
+                    if (!_cb.call(_this, _this.getValues(), e)) {
+                      return false;
+                    }
+                  }
+                });
+              }
+            })(ev, cb);
+          }
         }
       }
       return ele;
     };
 
     FormJS.prototype._wrap = function(ele, obj) {
-      var $ele;
-      $ele = jQuery(ele).wrap('<div />').parent().addClass('form-row');
-      if (obj._type) {
-        $ele.addClass('form-' + obj._type);
-      }
-      return $ele;
+      return jQuery(ele).wrap('<div />').parent().addClass('form-row').addClass(obj._type && 'form-' + obj._type);
     };
 
     FormJS.registerType = FormJS.prototype.registerType = function(type, callback) {
@@ -183,255 +308,13 @@
 
   })();
 
-  /*
-  Type: form
-  */
+  require('./elements/base.js')(FormJS);
 
+  require('./elements/buttons.js')(FormJS);
 
-  FormJS.registerType('form', function(options) {
-    options._nowrap = true;
-    options._attributes = {
-      type: false
-    };
-    return this.applyAttributes(jQuery('<form />'), options);
-  });
+  require('./elements/options.js')(FormJS);
 
-  /*
-  Type: fieldset
-  Options:
-  	legend: text to appear in a <legend> tag as the first child of the fieldset
-  */
-
-
-  FormJS.registerType('fieldset', function(options) {
-    var tag;
-    options._nowrap = true;
-    tag = this.applyAttributes(jQuery('<fieldset>'), options);
-    if (options._legend) {
-      tag.removeAttr('legend');
-      jQuery('<legend>').html(options._legend).appendTo(tag);
-    }
-    return tag;
-  });
-
-  /*
-  Type: group
-  Notes: wraps a set of elements without using a fieldset
-  */
-
-
-  FormJS.registerType('group', function(options) {
-    options._nowrap = true;
-    return this.applyAttributes(jQuery('<div />'), options);
-  });
-
-  /*
-  Type: label
-  Notes: Mostly used internally to add labels to existing elements
-  Options:
-  	label/text: The text in the label
-  	for: the "for" attribute
-  */
-
-
-  FormJS.registerType('label', function(options) {
-    var _ref;
-    options._nowrap = true;
-    if ((_ref = options._label) == null) {
-      options._label = options._text;
-    }
-    return this.applyAttributes(jQuery('<label />').text(options._label), options);
-  });
-
-  /*
-  Type: description
-  Notes: Mostly used internally to add descriptions to an existing element
-  Options:
-  	description/text: text to appear in the description
-  */
-
-
-  FormJS.registerType('description', function(options) {
-    var _ref;
-    options._nowrap = true;
-    if ((_ref = options._description) == null) {
-      options._description = options._text;
-    }
-    return this.applyAttributes(jQuery('<span />').addClass('description').html(options._description), options);
-  });
-
-  /*
-  Type: markup
-  Notes: Used to display markup, ie white-space: pre
-  Options:
-  	markup/text: text to appear inside
-  */
-
-
-  FormJS.registerType('markup', function(options) {
-    var _ref;
-    if ((_ref = options._markup) == null) {
-      options._markup = options._text;
-    }
-    return this.applyAttributes(jQuery('<div />').html(options._markup), options);
-  });
-
-  /*
-  Type: hidden
-  Notes: A type=hidden input
-  */
-
-
-  FormJS.registerType('hidden', function(options) {
-    options._nowrap = true;
-    return FormJS.types["default"].call(this, options);
-  });
-
-  /*
-  Type: textarea
-  Notes: A <textarea /> input
-  Options: _cols, _rows
-  */
-
-
-  FormJS.registerType('textarea', function(options) {
-    var tag;
-    tag = jQuery('<textarea />').html(options._value);
-    delete options._value;
-    return this.applyAttributes(tag, options);
-  });
-
-  /*
-  Type: select
-  Notes: A dropdown <select> element
-  Options:
-  	_options: a hashmap of value and labels
-  	_multiple: boolean wether the "multiple" attribute should be set
-  */
-
-
-  FormJS.registerType('select', function(options) {
-    var label, opt, tag, val, _ref;
-    if (options._multiple && (options._multiple === !!options._multiple)) {
-      options._multiple = 'multiple';
-    } else {
-      delete options._multiple;
-    }
-    tag = jQuery('<select />');
-    _ref = options._options;
-    for (val in _ref) {
-      label = _ref[val];
-      opt = jQuery('<option />').attr('value', val).html(label);
-      if (val === options._value) {
-        opt.attr('selected', 'selected');
-      }
-      opt.appendTo(tag);
-    }
-    return this.applyAttributes(tag, options);
-  });
-
-  /*
-  Type: button
-  Notes: A <button> tag
-  Options: _value
-  */
-
-
-  FormJS.registerType('button', function(options) {
-    return this.applyAttributes(jQuery('<button />').html(options._value), options);
-  });
-
-  /*
-  Type: cancel
-  Notes: A <button> that, when clicked, fires the _cancel event or resets the form
-  Options: _value
-  */
-
-
-  FormJS.registerType('cancel', function(options) {
-    var button;
-    button = FormJS.types.button.call(this, options);
-    button.addClass('cancel');
-    return button.click(function() {
-      var $self, form, item;
-      $self = $(this);
-      form = $self.data('form-config');
-      item = $self.data('item-config');
-      if (form._cancel) {
-        form._cancel(item);
-      } else {
-        $self.parents('form').reset();
-      }
-      return false;
-    });
-  });
-
-  /*
-  Type: radio, checkbox
-  Notes: defined purely to add a default "label_position" to radio/checkbox elements
-  */
-
-
-  FormJS.registerType('radio', function(options) {
-    var _ref;
-    if ((_ref = options._label_position) == null) {
-      options._label_position = 'after';
-    }
-    return FormJS.types["default"].call(this, options, ['_label_position']);
-  });
-
-  FormJS.registerType('checkbox', function(options) {
-    var _ref;
-    if ((_ref = options._label_position) == null) {
-      options._label_position = 'after';
-    }
-    return FormJS.types["default"].call(this, options, ['_label_position']);
-  });
-
-  /*
-  Type: radios, checkboxes
-  Notes: a list of radio/checkbox elements
-  Options:
-  	_options: a hashmap of value/label
-  */
-
-
-  FormJS.registerType('radios', function(options) {
-    options._type = 'radio';
-    return FormJS.types.options.call(this, options);
-  });
-
-  FormJS.registerType('checkboxes', function(options) {
-    options._type = 'checkbox';
-    return FormJS.types.options.call(this, options);
-  });
-
-  FormJS.registerType('options', function(options) {
-    var label, o, value, wrap, _ref;
-    wrap = jQuery('<div />');
-    _ref = options._options;
-    for (value in _ref) {
-      label = _ref[value];
-      o = {
-        _type: options._type,
-        _name: options._name,
-        _value: value,
-        _label: label
-      };
-      wrap.append(this.render(o));
-    }
-    return this.applyAttributes(wrap, options);
-  });
-
-  /*
-  Type: default
-  Notes: fallback used to implement text/radio/submit etc <input type=".." without strictly defining them
-  */
-
-
-  FormJS.registerType('default', function(options) {
-    return this.applyAttributes(jQuery('<input />'), options);
-  });
+  require('./elements/select.js')(FormJS);
 
   if (typeof module !== "undefined" && module !== null) {
     module.exports = FormJS;
