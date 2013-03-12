@@ -7,11 +7,15 @@ class FormJS
 		if obj._method
 			obj._type = 'form'
 
+		@config = obj
+
 		@dom = @render obj
+		@dom.addClass('formjs-root')
 		@dom.find('*').data('form-config', obj)
 
-		if target
-			@dom.appendTo target
+		# rewrite config incase it changed during render
+		@config = obj
+		target and @dom.appendTo target
 
 	_filter: (obj, match) ->
 		ret = {}
@@ -31,7 +35,7 @@ class FormJS
 
 	render: (obj) ->
 		element = @_render obj
-		if not obj._nowrap
+		if obj._nowrap isnt true
 			element = @label (@_wrap element, obj), obj
 
 		children = @getChildren obj
@@ -47,11 +51,11 @@ class FormJS
 		fn.call this, obj
 
 	_generate_id: (obj) ->
-		if not obj._id
+		if not obj._id and obj._name
 			id = "form-#{obj._name}"
 			ids = FormJS.used_ids
 			while id in FormJS.used_ids
-				id = "form-#{obj._name}-#{Math.random()}"
+				id = "form-#{obj._name}-#{Math.floor(Math.random() * 500)}"
 			FormJS.used_ids.push id
 			obj._id = id
 
@@ -66,15 +70,100 @@ class FormJS
 			if typeof obj._label isnt 'object'
 				o = {_label: obj._label}
 			o._type = 'label'
-			o._for ?= obj.id
+			o._for ?= obj._id
 			ele[method] @_render o
 
 		return ele
+
+	populate: (data, target = @dom) ->
+		elements = {}
+		elements[$(ele).attr('name')] = $(ele) for ele in target.find('[name]')
+
+		get_names = (value, key = '', names = {}) ->
+			if typeof value is 'object'
+				for k,v of value
+					names = get_names v, key + '[' + k + ']', names
+			else
+				names[key] = value
+			return names
+
+		for k,v of data
+			names = get_names v, k
+			for name, val of names when element = @dom.find '[name="' + name + '"]'
+				config = element.data('item-config')
+
+				if (multi = element.parents('.form-multiple')).length > 0
+					conf = multi.data('item-config')
+					if conf._populate_callback
+						if conf._populate_callback name, val, element, conf, data
+							continue
+
+				if element.attr('type') is 'checkbox'
+					checked = (val.toUpperCase and val.length) or (val.toFixed and !!(parseFloat(val))) or 1 # integer or string
+					if checked
+						element.attr 'checked', 'checked'
+					else
+						element.removeAttr 'checked'
+				else if element.attr('type') is 'radio'
+					@form.find('[name="' + name = '"][value=' + val + ']')
+						.removeAttr('checked')
+						.filter('[value=' + val + ']')
+						.attr('checked', 'checked')
+				else
+					element?.val val
+
+	getValues: (target, debug = false) ->
+		values = {}
+		target = $ target or @dom
+
+		for ele in target.find('[name]')
+			ele = jQuery(ele)
+			name = ele.attr('name')
+			type = ele.attr('type')
+
+			if type in ['submit', 'reset', 'cancel']
+				continue
+
+			config = ele.parent().find('input, select, textarea').andSelf().data('item-config')
+
+			val  = (config and config._value_callback?.call? and config._value_callback.call(ele, config)) or ele.attr('data-value') or ele.val()
+
+			if not val
+				continue
+
+			if type in ['radio', 'checkbox']
+				val = target.find('[name="' + name + '"]:checked').val()
+				if val is 'undefined' or typeof val is 'undefined'
+					val = false
+
+			levels = ['^([^\\[]+)', '\\[([0-9]+|[^\\]]+)\\]', '\\[([0-9]+|[^\\]]+)\\]', '\\[([0-9]+|[^\\]]+)\\]']
+			reg = ''
+			i = 0
+			tar = values
+			for level in levels
+				i++
+				reg += level
+				match = name.match(reg)
+				if match and match[i]?
+					k = match[i]
+					type = (if isNaN(parseInt(match[i])) then {} else [])
+
+					if i is 1
+						find = 'values.' + k
+						values[k] ?= type.constructor()
+					else
+						eval(find + ' = ' + find + ' && ' + find + '.constructor == type.constructor ? ' + find + ' : type.constructor()')
+						find += '["' + k + '"]'
+
+			eval(find + ' = ' + JSON.stringify(val))
+
+		return values		
 
 	applyAttributes: (ele, _attrs, skip = []) ->
 		if not _attrs
 			throw 'No attrs'
 
+		@_generate_id _attrs
 		ele.data('item-config', _attrs)
 
 		# need to transform the attrs to remove the _
@@ -89,214 +178,43 @@ class FormJS
 		# bind all events.
 		if events = _attrs._events
 			for ev, cb of events when ev
-				# ensure callback list is an (ordered) array
-				if not cb.forEach?
-					cb = [cb]
-				# add validation before submission
-				if ev is 'submit' and events.validate
-					cb.unshift events.validate
-				# if there is a validate but no submit, make sure it is called.
-				if ev is 'validate'
-					if not events.submit
-						ev = 'submit'
-					else
-						continue
-
-				ele[ev] () ->
-					for _cb in cb
-						if not _cb.apply this, arguments
-							return false
+				do (ev, cb) =>
+					# ensure callback list is an (ordered) array
+					if not cb.forEach?
+						cb = [cb]
+					# add validation before submission
+					if ev is 'submit' and events.validate
+						cb.unshift events.validate
+					# if there is a validate but no submit, make sure it is called.
+					if ev is 'validate'
+						if not events.submit
+							ev = 'submit'
+						else
+							return
+					if ele[ev]
+						ele[ev] (e) =>
+							for _cb in cb
+								if not _cb.call this, @getValues(), e
+									return false
 
 		ele
 
 	# takes an jQuery object / html
 	# returns a wrapped jQuery object
 	_wrap: (ele, obj) ->
-		$ele = jQuery(ele).wrap('<div />').parent().addClass('form-row')
-		if obj._type then $ele.addClass('form-' + obj._type)
-		return $ele
+		jQuery(ele)
+		  .wrap('<div />')
+		  .parent()
+		  .addClass('form-row')
+		  .addClass obj._type and 'form-' + obj._type
 
 	@registerType = @::registerType = (type, callback) ->
 		FormJS.types[type] = callback
 
-###
-Type: form
-###
-FormJS.registerType 'form', (options) ->
-	options._nowrap = true
-	options._attributes = {type: false}
-	@applyAttributes jQuery('<form />'), options
-
-###
-Type: fieldset
-Options:
-	legend: text to appear in a <legend> tag as the first child of the fieldset
-###
-FormJS.registerType 'fieldset', (options) ->
-	options._nowrap = true
-
-	tag = @applyAttributes jQuery('<fieldset>'), options
-	if options._legend
-		tag.removeAttr 'legend'
-		jQuery('<legend>').html(options._legend).appendTo tag
-
-	tag	
-
-###
-Type: group
-Notes: wraps a set of elements without using a fieldset
-###
-FormJS.registerType 'group', (options) ->
-	options._nowrap = true
-	@applyAttributes jQuery('<div />'), options
-
-###
-Type: label
-Notes: Mostly used internally to add labels to existing elements
-Options:
-	label/text: The text in the label
-	for: the "for" attribute
-###
-FormJS.registerType 'label', (options) ->
-	options._nowrap = true
-	options._label ?= options._text
-	@applyAttributes jQuery('<label />').text(options._label), options
-
-###
-Type: description
-Notes: Mostly used internally to add descriptions to an existing element
-Options:
-	description/text: text to appear in the description
-###
-FormJS.registerType 'description', (options) ->
-	options._nowrap = true
-	options._description ?= options._text
-	@applyAttributes jQuery('<span />').addClass('description').html(options._description), options
-
-###
-Type: markup
-Notes: Used to display markup, ie white-space: pre
-Options:
-	markup/text: text to appear inside
-###
-FormJS.registerType 'markup', (options) ->
-	options._markup ?= options._text
-	@applyAttributes jQuery('<div />').html(options._markup), options
-
-###
-Type: hidden
-Notes: A type=hidden input
-###
-FormJS.registerType 'hidden', (options) ->
-	options._nowrap = true
-	FormJS.types.default.call this, options
-
-###
-Type: textarea
-Notes: A <textarea /> input
-Options: _cols, _rows
-###
-FormJS.registerType 'textarea', (options) ->
-	tag = jQuery('<textarea />').html options._value
-	delete options._value
-	@applyAttributes tag, options
-
-###
-Type: select
-Notes: A dropdown <select> element
-Options:
-	_options: a hashmap of value and labels
-	_multiple: boolean wether the "multiple" attribute should be set
-###
-FormJS.registerType 'select', (options) ->
-	if options._multiple and (options._multiple is !!options._multiple)
-		options._multiple = 'multiple'
-	else
-		delete options._multiple
-
-	tag = jQuery('<select />')
-	for val, label of options._options
-		opt = jQuery('<option />').attr('value', val).html(label)
-		if val is options._value
-			opt.attr('selected', 'selected')
-		opt.appendTo tag
-
-	@applyAttributes tag, options
-
-###
-Type: button
-Notes: A <button> tag
-Options: _value
-###
-FormJS.registerType 'button', (options) ->
-	@applyAttributes jQuery('<button />').html(options._value), options
-
-###
-Type: cancel
-Notes: A <button> that, when clicked, fires the _cancel event or resets the form
-Options: _value
-###
-FormJS.registerType 'cancel', (options) ->
-	button = FormJS.types.button.call this, options
-	button.addClass 'cancel'
-
-	button.click () ->
-		$self = $ @
-		form = $self.data 'form-config'
-		item = $self.data 'item-config'
-
-		if form._cancel
-			form._cancel item
-		else
-			$self.parents('form').reset()
-
-		return false
-
-
-###
-Type: radio, checkbox
-Notes: defined purely to add a default "label_position" to radio/checkbox elements
-###
-FormJS.registerType 'radio', (options) ->
-	options._label_position ?= 'after'
-	FormJS.types.default.call this, options, ['_label_position']
-
-FormJS.registerType 'checkbox', (options) ->
-	options._label_position ?= 'after'
-	FormJS.types.default.call this, options, ['_label_position']
-
-###
-Type: radios, checkboxes
-Notes: a list of radio/checkbox elements
-Options:
-	_options: a hashmap of value/label
-###
-FormJS.registerType 'radios', (options) ->
-	options._type = 'radio'
-	FormJS.types.options.call this, options
-
-FormJS.registerType 'checkboxes', (options) ->
-	options._type = 'checkbox'
-	FormJS.types.options.call this, options
-
-FormJS.registerType 'options', (options) ->
-	wrap = jQuery('<div />')
-	for value, label of options._options
-		o =
-			_type: options._type
-			_name: options._name
-			_value: value
-			_label: label
-		wrap.append @render o
-
-	@applyAttributes wrap, options
-
-###
-Type: default
-Notes: fallback used to implement text/radio/submit etc <input type=".." without strictly defining them
-###
-FormJS.registerType 'default', (options) ->
-	@applyAttributes jQuery('<input />'), options
+require('./elements/base.js')(FormJS)
+require('./elements/buttons.js')(FormJS)
+require('./elements/options.js')(FormJS)
+require('./elements/select.js')(FormJS)
 
 if module?
 	module.exports = FormJS

@@ -10,7 +10,11 @@
   "development": {},
   "license": "MIT",
   "scripts": [
-    "index.js"
+    "index.js",
+    "elements/base.js",
+    "elements/buttons.js",
+    "elements/options.js",
+    "elements/select.js"
   ],
   "styles": [
     "formjs.css"
