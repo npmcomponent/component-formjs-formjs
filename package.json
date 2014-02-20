@@ -1,0 +1,16 @@
+{
+  "name": "component-formjs-formjs",
+  "description": "Generate forms from a JSON description",
+  "version": "0.1.1",
+  "keywords": [
+    "form",
+    "json"
+  ],
+  "styles": [
+    "formjs.css"
+  ],
+  "dependencies": {
+    "component-jquery": "git://github.com/npmcomponent/component-jquery.git"
+  },
+  "license": "MIT"
+}
